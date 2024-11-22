@@ -21,4 +21,9 @@ class LoadBalancerStack(cdk.Stack):
         self.alb = elbv2.ApplicationLoadBalancer(
             self, "AppLoadBalancer", vpc=vpc, internet_facing=True
         )
-        cdk.CfnOutput(self, "dns", value=self.alb.load_balancer_dns_name)
+        cdk.CfnOutput(
+            self,
+            "LoadBalancerDns",
+            value=self.alb.load_balancer_dns_name,
+            export_name=f"{construct_id}-dns",
+        )
