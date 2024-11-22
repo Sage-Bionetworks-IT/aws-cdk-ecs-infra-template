@@ -119,6 +119,11 @@ For example, synthesis with the `prod` environment variables:
 ENV=prod cdk synth
 ```
 
+> [!NOTE]
+> The `VPC_CIDR` must be a unique value within our AWS organization. Check our
+> [wiki](https://sagebionetworks.jira.com/wiki/spaces/IT/pages/2850586648/Setup+AWS+VPC)
+> for information on how to obtain a unique CIDR
+
 # Certificates
 
 Certificates to set up HTTPS connections should be created manually in AWS certificate manager.
