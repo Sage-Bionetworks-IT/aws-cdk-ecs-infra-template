@@ -5,8 +5,8 @@ import aws_cdk as cdk
 from src.ecs_stack import EcsStack
 from src.load_balancer_stack import LoadBalancerStack
 from src.network_stack import NetworkStack
-from src.service_props import ServiceProps, ContainerVolume
-from src.service_stack import LoadBalancedServiceStack, ServiceStack
+from src.service_props import ServiceProps
+from src.service_stack import LoadBalancedServiceStack
 
 # get the environment and set environment specific variables
 VALID_ENVIRONMENTS = ["dev", "stage", "prod"]
