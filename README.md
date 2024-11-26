@@ -97,7 +97,7 @@ python -m pytest tests/ -s -v
 ```
 
 
-# Environments
+## Environments
 
 An `ENV` environment variable must be set when running the `cdk` command tell the
 CDK which environment's variables to use when synthesising or deploying the stacks.
@@ -124,7 +124,7 @@ ENV=prod cdk synth
 > [wiki](https://sagebionetworks.jira.com/wiki/spaces/IT/pages/2850586648/Setup+AWS+VPC)
 > for information on how to obtain a unique CIDR
 
-# Certificates
+## Certificates
 
 Certificates to set up HTTPS connections should be created manually in AWS certificate manager.
 This is not automated due to AWS requiring manual verification of the domain ownership.
@@ -132,7 +132,7 @@ Once created take the ARN of the certificate and set that ARN in environment_var
 
 ![ACM certificate](docs/acm-certificate.png)
 
-# Secrets
+## Secrets
 
 Secrets can be manually created in the
 [AWS Secrets Manager](https://docs.aws.amazon.com/secretsmanager/latest/userguide/create_secret.html).
@@ -192,6 +192,54 @@ my_secret = os.environ.get("SINGLE_VALUE_SECRET", None)
 
 > [!NOTE]
 > Retrieving secrets requires access to the AWS Secrets Manager
+
+## DNS
+
+A DNS CNAME must be created in org-formation after the initial
+deployment of the application to make the application available at the desired
+URL. The CDK application exports the DNS name of the Application Load Balancer
+to be consumed in org-formation. [An example PR setting up a CNAME](https://github.com/Sage-Bionetworks-IT/organizations-infra/pull/1299).
+
+Login to the AWS cloudformation console and navigate to the deployed stack `app-load-balancer`
+and click on the `Outputs` tab.  On the row whose key is `LoadBalancerDNS` look for the
+value in the `Export Name` column, e.g., `app-dev-load-balancer-dns`. Now use the name
+in the `TargetHostName` definition, for example:
+
+```
+TargetHostName: !CopyValue [!Sub 'app-dev-load-balancer-dns', !Ref DnTDevAccount]
+```
+
+(You would also replace `DnTDevAccount` with the name of the account in which the application is deployed.)
+
+> [!NOTE]
+> Setting up the DNS cname should be done at the very end of this infra setup
+
+
+## Debugging
+
+Generally CDK deployments will create cloudformation events during a CDK deploy.
+The events can be viewed in the AWS console under the cloudformation service page.
+Viewing those events will help with errors during a deployment.  Below are cases
+where it might be difficult to debug due to misleading or insufficient error
+messages from AWS
+
+### Missing Secrets
+
+Each new environment (dev/staging/prod/etc..) may require adding secrets.  If a
+secret is not created for the environment you may get an error with the following
+stack trace..
+```
+Resource handler returned message: "Error occurred during operation 'ECS Deployment Circuit Breaker was triggered'." (RequestToken: d180e115-ba94-d8a2-acf9-abe17a3aaed9, HandlerErrorCode: GeneralServiceException)
+    new BaseService (/private/var/folders/qr/ztb40vmn2pncyh8jpsgfnrt40000gp/T/jsii-kernel-4PEWmj/node_modules/aws-cdk-lib/aws-ecs/lib/base/base-service.js:1:3583)
+    \_ new FargateService (/private/var/folders/qr/ztb40vmn2pncyh8jpsgfnrt40000gp/T/jsii-kernel-4PEWmj/node_modules/aws-cdk-lib/aws-ecs/lib/fargate/fargate-service.js:1:967)
+    \_ new ApplicationLoadBalancedFargateService (/private/var/folders/qr/ztb40vmn2pncyh8jpsgfnrt40000gp/T/jsii-kernel-4PEWmj/node_modules/aws-cdk-lib/aws-ecs-patterns/lib/fargate/application-load-balanced-fargate-service.js:1:2300)
+    \_ Kernel._create (/private/var/folders/qr/ztb40vmn2pncyh8jpsgfnrt40000gp/T/tmpqkmckdm2/lib/program.js:9964:29)
+    \_ Kernel.create (/private/var/folders/qr/ztb40vmn2pncyh8jpsgfnrt40000gp/T/tmpqkmckdm2/lib/program.js:9693:29)
+    \_ KernelHost.processRequest (/private/var/folders/qr/ztb40vmn2pncyh8jpsgfnrt40000gp/T/tmpqkmckdm2/lib/program.js:11544:36)
+    \_ KernelHost.run (/private/var/folders/qr/ztb40vmn2pncyh8jpsgfnrt40000gp/T/tmpqkmckdm2/lib/program.js:11504:22)
+    \_ Immediate._onImmediate (/private/var/folders/qr/ztb40vmn2pncyh8jpsgfnrt40000gp/T/tmpqkmckdm2/lib/program.js:11505:46)
+    \_ processImmediate (node:internal/timers:464:21)
+```
 
 # Deployment
 
@@ -271,7 +319,6 @@ AWS_PROFILE=itsandbox-dev AWS_DEFAULT_REGION=us-east-1 aws ecs execute-command \
   --container app-mariadb \
   --command "/bin/sh" --interactive
 ```
-
 
 # CI Workflow
 
