@@ -334,4 +334,3 @@ The workflow for continuous integration:
 * CI deploys changes to the staging environment (stage.app.io) in the AWS prod account.
 * Changes are promoted (or merged) to the git prod branch.
 * CI deploys changes to the prod environment (prod.app.io) in the AWS prod account.
-
