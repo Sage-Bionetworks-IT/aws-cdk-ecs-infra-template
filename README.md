@@ -9,6 +9,9 @@ AWS CDK projects require some bootstrapping before synthesis or deployment.
 Please review the [bootstapping documentation](https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html#getting_started_bootstrap)
 before development.
 
+> [!Note]
+> Sage IT deploys this CDK bootstrap upon creation of every AWS account in our AWS Organization.
+
 # Dev Container
 
 This repository provides a [dev container](https://containers.dev/) that includes all the tools
@@ -188,7 +191,7 @@ import os
 
 my_secret = os.environ.get("SINGLE_VALUE_SECRET", None)
 ```
-
+![Secrets Manager secret](docs/secrets-manager-secret.png)
 
 > [!NOTE]
 > Retrieving secrets requires access to the AWS Secrets Manager
@@ -202,8 +205,10 @@ to be consumed in org-formation. [An example PR setting up a CNAME](https://gith
 
 Login to the AWS cloudformation console and navigate to the deployed stack `app-load-balancer`
 and click on the `Outputs` tab.  On the row whose key is `LoadBalancerDNS` look for the
-value in the `Export Name` column, e.g., `app-dev-load-balancer-dns`. Now use the name
-in the `TargetHostName` definition, for example:
+value in the `Export Name` column, e.g., `app-dev-load-balancer-dns`.
+![Cloudformation Load Balancer](docs/cloudformation-load-balancer.png)
+
+Now use the name in the `TargetHostName` definition, for example:
 
 ```
 TargetHostName: !CopyValue [!Sub 'app-dev-load-balancer-dns', !Ref DnTDevAccount]
@@ -334,3 +339,5 @@ The workflow for continuous integration:
 * CI deploys changes to the staging environment (stage.app.io) in the AWS prod account.
 * Changes are promoted (or merged) to the git prod branch.
 * CI deploys changes to the prod environment (prod.app.io) in the AWS prod account.
+
+![CI deployment workflow](docs/ci-deployment-workflow.png)
