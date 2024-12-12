@@ -152,6 +152,17 @@ class ServiceStack(cdk.Stack):
                     )
                 ],
             ),
+            # Ensure at least one on demand task and the remaining should be spot tasks
+            capacity_provider_strategies=[
+                ecs.CapacityProviderStrategy(
+                    capacity_provider="FARGATE",
+                    base=1,  # At least 1 task will be run by FARGATE
+                ),
+                ecs.CapacityProviderStrategy(
+                    capacity_provider="FARGATE_SPOT",
+                    weight=1,  # The remain task will be run by FARGATE_SPOT
+                ),
+            ],
         )
 
         # Setup AutoScaling policy
