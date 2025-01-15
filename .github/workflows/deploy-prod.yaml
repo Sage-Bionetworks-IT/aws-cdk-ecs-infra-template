@@ -1,18 +1,17 @@
 name: deploy-prod
 
 on:
-  workflow_run:
-    workflows:
-      - check
-    types:
-      - completed
-    branches:
-      - prod
+  push:
+    branches: ['prod']
 
 jobs:
+  test:
+    uses: ./.github/workflows/test.yaml
+    with:
+      environment: prod
   aws-deploy:
     uses: "./.github/workflows/aws-deploy.yaml"
     with:
-      role-to-assume: "arn:aws:iam::XXXXXXXX:role/sagebase-github-oidc-myapp-infra"
+      role-to-assume: "arn:aws:iam::681175625864:role/sagebase-github-oidc-agora-infra-v3"
       role-session-name: ${{ github.repository_owner }}-${{ github.event.repository.name }}-${{ github.run_id }}
       environment: prod
