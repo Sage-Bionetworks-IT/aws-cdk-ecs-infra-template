@@ -28,4 +28,4 @@ jobs:
       - name: Generate cloudformation
         env:
           ENV: ${{ inputs.environment }}
-        run: cdk synth --output ./cdk.out
+        run: cdk synth --debug --output ./cdk.out
