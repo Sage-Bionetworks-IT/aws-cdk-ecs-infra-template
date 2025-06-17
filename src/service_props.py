@@ -53,6 +53,7 @@ class ServiceProps:
       supports "path://" for building container from local (i.e. path://docker/MyContainer)
       supports docker registry references (i.e. ghcr.io/sage-bionetworks/app:latest)
     container_port: the container application port
+    container_cpu: the container application CPU in millicores (i.e. 1024 = 1 vCPU)
     container_memory: the container application memory
     container_env_vars: a json dictionary of environment variables to pass into the container
       i.e. {"EnvA": "EnvValueA", "EnvB": "EnvValueB"}
@@ -69,6 +70,7 @@ class ServiceProps:
         container_name: str,
         container_location: str,
         container_port: int,
+        container_cpu: int,
         container_memory: int = 512,
         container_env_vars: dict = None,
         container_secrets: List[ServiceSecret] = None,
@@ -80,6 +82,7 @@ class ServiceProps:
     ) -> None:
         self.container_name = container_name
         self.container_port = container_port
+        self.container_cpu = container_cpu
         self.container_memory = container_memory
         if CONTAINER_LOCATION_PATH_ID in container_location:
             container_location = container_location.removeprefix(
