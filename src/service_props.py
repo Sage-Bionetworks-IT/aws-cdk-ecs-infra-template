@@ -70,7 +70,7 @@ class ServiceProps:
         container_name: str,
         container_location: str,
         container_port: int,
-        container_cpu: int,
+        container_cpu: int = 256,
         container_memory: int = 512,
         container_env_vars: dict = None,
         container_secrets: List[ServiceSecret] = None,
