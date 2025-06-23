@@ -52,6 +52,7 @@ def test_service_stack_created():
                     "Command": ["test"],
                     "HealthCheck": {"Command": ["CMD", "/healthcheck"]},
                 }
-            ]
+            ],
+            "Cpu": "256",
         },
     )
