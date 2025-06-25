@@ -46,7 +46,6 @@ def test_service_stack_created():
             "ContainerDefinitions": [
                 {
                     "Image": "ghcr.io/sage-bionetworks/app:1.0",
-                    "Memory": 512,
                     "MountPoints": [{"ContainerPath": "/work"}],
                     "Secrets": [{"Name": "APP_SECRET"}],
                     "Command": ["test"],
@@ -54,5 +53,6 @@ def test_service_stack_created():
                 }
             ],
             "Cpu": "256",
+            "Memory": "512",
         },
     )
