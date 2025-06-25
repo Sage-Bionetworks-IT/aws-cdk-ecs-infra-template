@@ -76,11 +76,11 @@ load_balancer_stack = LoadBalancerStack(
 )
 
 app_props = ServiceProps(
+    ecs_task_cpu=256,
+    ecs_task_memory=512,
     container_name="my-app",
     container_location=f"ghcr.io/sage-bionetworks/my-app:{app_version}",
     container_port=80,
-    container_cpu=256,
-    container_memory=512,
     container_env_vars={
         "APP_VERSION": f"{app_version}",
     },

@@ -148,9 +148,10 @@ when creating a `ServiceProp` object. You'll be creating a list of `ServiceSecre
 from src.service_props import ServiceProps, ServiceSecret
 
 app_service_props = ServiceProps(
+    ecs_task_cpu=256,
+    ecs_task_memory=512,
     container_name="app",
     container_port=443,
-    container_memory=1024,
     container_location="ghcr.io/sage-bionetworks/app:v1.0",
     container_secrets=[
         ServiceSecret(

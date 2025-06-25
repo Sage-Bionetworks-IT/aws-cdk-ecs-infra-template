@@ -19,8 +19,8 @@ def test_service_stack_created():
         container_name="app",
         container_location="ghcr.io/sage-bionetworks/app:1.0",
         container_port=8010,
-        container_cpu=256,
-        container_memory=512,
+        ecs_task_cpu=256,
+        ecs_task_memory=512,
         container_secrets=[
             ServiceSecret(
                 secret_name="/app/secret",
