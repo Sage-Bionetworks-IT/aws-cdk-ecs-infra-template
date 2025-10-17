@@ -43,6 +43,7 @@ load_balancer_stack = LoadBalancerStack(
     construct_id=f"{stack_name_prefix}-load-balancer",
     vpc=network_stack.vpc,
 )
+load_balancer_stack.add_dependency(ecs_stack)
 
 app_props = ServiceProps(
     ecs_task_cpu=256,
@@ -64,6 +65,5 @@ app_stack = LoadBalancedServiceStack(
     certificate_arn=config["CERTIFICATE_ARN"],
     health_check_path="/health",
 )
-app_stack.add_dependency(app_stack)
 
 cdk_app.synth()
