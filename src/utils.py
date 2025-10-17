@@ -45,8 +45,7 @@ def load_context_config(env_name: str, config_dir: str = "config") -> Dict[str, 
     # Load base config (optional)
     base_config = {}
     if base_path.exists():
-        with open(base_path, "r") as f:
-            base_config = yaml.safe_load(f) or {}
+        base_config = read_file(base_path)
 
     # Detect existing env-specific file(s)
     env_files = [p for p in [env_yaml, env_yml, env_json] if p.exists()]
