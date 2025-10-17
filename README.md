@@ -110,7 +110,7 @@ Create a configuration file in the config folder for each environment
 (e.g., `dev.yaml`, `prod.yaml`).  Both yaml and json files are supported.
 The supported environments are dev, stage, and prod.
 
-Example (`base.yaml`):
+Example (`dev.yaml`):
 
 ```yaml
 VPC_CIDR: 10.254.172.0/24
@@ -124,7 +124,7 @@ To synthesize or deploy using the `prod` environment configuration:
 cdk synth --context env=prod
 ```
 
-There is also a base configuration file that is always loaded
+There is also an optional base configuration file that is always loaded
 and merged with one of the passed in environment configuration.
 
 The values from the environment-specific configuration file will
