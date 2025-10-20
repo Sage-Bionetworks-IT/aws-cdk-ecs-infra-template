@@ -222,60 +222,84 @@ class LoadBalancedServiceStack(ServiceStack):
         cluster: ecs.Cluster,
         props: ServiceProps,
         load_balancer: elbv2.ApplicationLoadBalancer,
-        certificate_arn: str,
+        certificate_arn: str = None,
         health_check_path: str = "/",
         health_check_interval: int = 1,  # max is 5
+        enable_https: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, vpc, cluster, props, **kwargs)
 
-        # -------------------
-        # ACM Certificate for HTTPS
-        # -------------------
-        self.cert = acm.Certificate.from_certificate_arn(
-            self, "Cert", certificate_arn=certificate_arn
-        )
+        if enable_https and certificate_arn:
+            # -------------------
+            # ACM Certificate for HTTPS
+            # -------------------
+            self.cert = acm.Certificate.from_certificate_arn(
+                self, "Cert", certificate_arn=certificate_arn
+            )
 
-        # -------------------------------
-        # Setup https
-        # -------------------------------
-        https_listener = elbv2.ApplicationListener(
-            self,
-            "HttpsListener",
-            load_balancer=load_balancer,
-            port=ALB_HTTPS_LISTENER_PORT,
-            open=True,
-            protocol=elbv2.ApplicationProtocol.HTTPS,
-            certificates=[self.cert],
-        )
+            # -------------------------------
+            # Setup https
+            # -------------------------------
+            https_listener = elbv2.ApplicationListener(
+                self,
+                "HttpsListener",
+                load_balancer=load_balancer,
+                port=ALB_HTTPS_LISTENER_PORT,
+                open=True,
+                protocol=elbv2.ApplicationProtocol.HTTPS,
+                certificates=[self.cert],
+            )
 
-        https_listener.add_targets(
-            "HttpsTarget",
-            port=props.container_port,
-            protocol=elbv2.ApplicationProtocol.HTTP,
-            targets=[self.service],
-            health_check=elbv2.HealthCheck(
-                path=health_check_path, interval=duration.minutes(health_check_interval)
-            ),
-        )
+            https_listener.add_targets(
+                "HttpsTarget",
+                port=props.container_port,
+                protocol=elbv2.ApplicationProtocol.HTTP,
+                targets=[self.service],
+                health_check=elbv2.HealthCheck(
+                    path=health_check_path,
+                    interval=duration.minutes(health_check_interval),
+                ),
+            )
 
-        # -------------------------------
-        # redirect http to https
-        # -------------------------------
-        http_listener = elbv2.ApplicationListener(
-            self,
-            "HttpListener",
-            load_balancer=load_balancer,
-            port=ALB_HTTP_LISTENER_PORT,
-            open=True,
-            protocol=elbv2.ApplicationProtocol.HTTP,
-        )
+            # -------------------------------
+            # redirect http to https
+            # -------------------------------
+            http_listener = elbv2.ApplicationListener(
+                self,
+                "HttpListener",
+                load_balancer=load_balancer,
+                port=ALB_HTTP_LISTENER_PORT,
+                open=True,
+                protocol=elbv2.ApplicationProtocol.HTTP,
+            )
 
-        http_listener.add_action(
-            "HttpRedirect",
-            action=elbv2.ListenerAction.redirect(
-                port=str(ALB_HTTPS_LISTENER_PORT),
-                protocol=(elbv2.ApplicationProtocol.HTTPS).value,
-                permanent=True,
-            ),
-        )
+            http_listener.add_action(
+                "HttpRedirect",
+                action=elbv2.ListenerAction.redirect(
+                    port=str(ALB_HTTPS_LISTENER_PORT),
+                    protocol=(elbv2.ApplicationProtocol.HTTPS).value,
+                    permanent=True,
+                ),
+            )
+        else:
+            # Only HTTP listener, no HTTPS
+            http_listener = elbv2.ApplicationListener(
+                self,
+                "HttpListener",
+                load_balancer=load_balancer,
+                port=ALB_HTTP_LISTENER_PORT,
+                open=True,
+                protocol=elbv2.ApplicationProtocol.HTTP,
+            )
+
+            http_listener.add_targets(
+                "HttpTarget",
+                port=props.container_port,
+                protocol=elbv2.ApplicationProtocol.HTTP,
+                targets=[self.service],
+                health_check=elbv2.HealthCheck(
+                    path=health_check_path,
+                    interval=duration.minutes(health_check_interval),
+                ),
+            )
