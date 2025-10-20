@@ -41,7 +41,7 @@ match environment:
 stack_name_prefix = f"app-{environment}"
 fully_qualified_domain_name = environment_variables["FQDN"]
 environment_tags = environment_variables["TAGS"]
-app_version = "edge"
+app_version = "latest"
 
 # Define stacks
 cdk_app = cdk.App()
@@ -78,7 +78,8 @@ app_props = ServiceProps(
     ecs_task_cpu=256,
     ecs_task_memory=512,
     container_name="my-app",
-    container_location=f"ghcr.io/sage-bionetworks/my-app:{app_version}",
+    # can also reference github with 'ghcr.io/sage-bionetworks/my-app:{app_version}'
+    container_location=f"nginx:{app_version}",
     container_port=80,
     container_env_vars={
         "APP_VERSION": f"{app_version}",
@@ -91,7 +92,6 @@ app_stack = LoadBalancedServiceStack(
     cluster=ecs_stack.cluster,
     props=app_props,
     load_balancer=load_balancer_stack.alb,
-    health_check_path="/health",
 )
 app_stack.add_dependency(app_stack)
 
