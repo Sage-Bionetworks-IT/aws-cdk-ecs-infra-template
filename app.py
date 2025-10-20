@@ -14,7 +14,7 @@ config = load_context_config(env_name=env_name)
 stack_name_prefix = f"app-{env_name}"
 fully_qualified_domain_name = config["FQDN"]
 environment_tags = config["TAGS"]
-app_version = "edge"
+app_version = "latest"
 
 # recursively apply tags to all stack resources
 if environment_tags:
@@ -49,7 +49,8 @@ app_props = ServiceProps(
     ecs_task_cpu=256,
     ecs_task_memory=512,
     container_name="my-app",
-    container_location=f"ghcr.io/sage-bionetworks/my-app:{app_version}",
+    # can also reference github with 'ghcr.io/sage-bionetworks/my-app:{app_version}'
+    container_location=f"nginx:{app_version}",
     container_port=80,
     container_env_vars={
         "APP_VERSION": f"{app_version}",
@@ -62,8 +63,6 @@ app_stack = LoadBalancedServiceStack(
     cluster=ecs_stack.cluster,
     props=app_props,
     load_balancer=load_balancer_stack.alb,
-    certificate_arn=config["CERTIFICATE_ARN"],
-    health_check_path="/health",
 )
 
 cdk_app.synth()
