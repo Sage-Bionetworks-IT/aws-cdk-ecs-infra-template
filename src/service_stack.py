@@ -230,6 +230,10 @@ class LoadBalancedServiceStack(ServiceStack):
     ) -> None:
         super().__init__(scope, construct_id, vpc, cluster, props, **kwargs)
 
+        if enable_https and not certificate_arn:
+            raise ValueError(
+                "enable_https is True but certificate_arn is None. Please provide a valid certificate ARN to enable HTTPS."
+            )
         if enable_https and certificate_arn:
             # -------------------
             # ACM Certificate for HTTPS
