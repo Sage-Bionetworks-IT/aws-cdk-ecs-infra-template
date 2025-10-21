@@ -16,7 +16,6 @@ match environment:
         environment_variables = {
             "VPC_CIDR": "10.254.174.0/24",
             "FQDN": "prod.mydomain.io",
-            "CERTIFICATE_ARN": "arn:aws:acm:us-east-1:XXXXXXXXX:certificate/69b3ba97-b382-4648-8f94-a250b77b4994",
             "TAGS": {"CostCenter": "NO PROGRAM / 000000"},
         }
     case "stage":
@@ -93,7 +92,6 @@ app_stack = LoadBalancedServiceStack(
     cluster=ecs_stack.cluster,
     props=app_props,
     load_balancer=load_balancer_stack.alb,
-    certificate_arn=environment_variables["CERTIFICATE_ARN"],
 )
 app_stack.add_dependency(app_stack)
 
