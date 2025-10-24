@@ -7,7 +7,6 @@ from src.service_props import ServiceProps
 from src.service_stack import LoadBalancedServiceStack
 from src.utils import load_context_config
 
-
 cdk_app = cdk.App()
 env_name = cdk_app.node.try_get_context("env") or "dev"
 config = load_context_config(env_name=env_name)
