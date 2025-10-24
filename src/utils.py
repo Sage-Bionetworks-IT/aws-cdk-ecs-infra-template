@@ -19,11 +19,11 @@ def load_context_config(env_name: str, config_dir: str = "config") -> Dict[str, 
     """
 
     # ✅ Validate environment name
-    valid_envs = {"dev", "stage", "prod"}
-    if env_name not in valid_envs:
+    VALID_ENVS = {"dev", "stage", "prod"}
+    if env_name not in VALID_ENVS:
         raise ValueError(
             f"Invalid environment '{env_name}'. "
-            f"Must be one of: {', '.join(sorted(valid_envs))}"
+            f"Must be one of: {', '.join(sorted(VALID_ENVS))}"
         )
 
     # Define possible config paths

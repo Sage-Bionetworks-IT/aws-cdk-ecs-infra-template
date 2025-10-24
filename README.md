@@ -106,17 +106,9 @@ When running `cdk` commands, you must specify which environment's
 configuration to use.  This is done by passing a context variable to
 CDK, which loads environment-specific parameters.
 
-Create a configuration file in the config folder for each environment
+Create a configuration file in the [config folder](./config) for each environment
 (e.g., `dev.yaml`, `prod.yaml`).  Both yaml and json files are supported.
 The supported environments are dev, stage, and prod.
-
-Example (`dev.yaml`):
-
-```yaml
-VPC_CIDR: 10.254.172.0/24
-FQDN: dev.mydomain.io
-CERTIFICATE_ARN: arn:aws:acm:us-east-1:XXXXXXXXX:certificate/e8093404-7db1-4042-90d0-01eb5bde1ffc
-```
 
 To synthesize or deploy using the `prod` environment configuration:
 

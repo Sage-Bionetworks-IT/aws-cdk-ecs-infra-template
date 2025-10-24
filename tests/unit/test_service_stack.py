@@ -5,23 +5,14 @@ from src.network_stack import NetworkStack
 from src.ecs_stack import EcsStack
 from src.service_props import ServiceProps, ServiceSecret, ContainerVolume
 from src.service_stack import ServiceStack
-from src.utils import load_context_config
 
 
 def test_service_stack_created():
-    # Load configuration from dev environment
-    config = load_context_config(env_name="dev")
-
     cdk_app = cdk.App()
-    vpc_cidr = config["VPC_CIDR"]
-    fully_qualified_domain_name = config["FQDN"]
-
+    vpc_cidr = "10.254.192.0/24"
     network_stack = NetworkStack(cdk_app, "NetworkStack", vpc_cidr=vpc_cidr)
     ecs_stack = EcsStack(
-        cdk_app,
-        "EcsStack",
-        vpc=network_stack.vpc,
-        namespace=fully_qualified_domain_name,
+        cdk_app, "EcsStack", vpc=network_stack.vpc, namespace="dev.app.io"
     )
 
     app_props = ServiceProps(
