@@ -31,12 +31,16 @@ def test_service_stack_created():
         container_command=["test"],
         container_healthcheck=cdk.aws_ecs.HealthCheck(command=["CMD", "/healthcheck"]),
     )
+    # Configure security group connections
+    network_stack.configure_security_group_connections(container_port=8010)
+
     app_stack = ServiceStack(
         scope=cdk_app,
         construct_id="app",
         vpc=network_stack.vpc,
         cluster=ecs_stack.cluster,
         props=app_props,
+        ecs_security_group=network_stack.ecs_security_group,
     )
 
     template = assertions.Template.from_stack(app_stack)

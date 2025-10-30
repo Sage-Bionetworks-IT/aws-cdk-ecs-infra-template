@@ -26,6 +26,9 @@ network_stack = NetworkStack(
     vpc_cidr=config["VPC_CIDR"],
 )
 
+# Configure security group connections for the container port
+network_stack.configure_security_group_connections(container_port=80)
+
 ecs_stack = EcsStack(
     scope=cdk_app,
     construct_id=f"{STACK_NAME_PREFIX}-ecs",
@@ -41,6 +44,7 @@ load_balancer_stack = LoadBalancerStack(
     scope=cdk_app,
     construct_id=f"{STACK_NAME_PREFIX}-load-balancer",
     vpc=network_stack.vpc,
+    alb_security_group=network_stack.alb_security_group,
 )
 load_balancer_stack.add_dependency(ecs_stack)
 
@@ -62,6 +66,7 @@ app_stack = LoadBalancedServiceStack(
     cluster=ecs_stack.cluster,
     props=app_props,
     load_balancer=load_balancer_stack.alb,
+    ecs_security_group=network_stack.ecs_security_group,
 )
 
 cdk_app.synth()

@@ -28,9 +28,13 @@ class ServiceStack(cdk.Stack):
         vpc: ec2.Vpc,
         cluster: ecs.Cluster,
         props: ServiceProps,
+        ecs_security_group: ec2.SecurityGroup,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        # Use the security group from the network stack
+        self.security_group = ecs_security_group
 
         # allow containers default task access and s3 bucket access
         task_role = iam.Role(
@@ -126,11 +130,8 @@ class ServiceStack(cdk.Stack):
             health_check=props.container_healthcheck,
         )
 
-        self.security_group = ec2.SecurityGroup(self, "SecurityGroup", vpc=vpc)
-        self.security_group.add_ingress_rule(
-            peer=ec2.Peer.ipv4("0.0.0.0/0"),
-            connection=ec2.Port.tcp(props.container_port),
-        )
+        # Note: Security group will be passed from the network stack
+        # to ensure least privilege access without cyclic dependencies
 
         # attach ECS task to ECS cluster
         self.service = ecs.FargateService(
@@ -222,13 +223,16 @@ class LoadBalancedServiceStack(ServiceStack):
         cluster: ecs.Cluster,
         props: ServiceProps,
         load_balancer: elbv2.ApplicationLoadBalancer,
+        ecs_security_group: ec2.SecurityGroup,
         certificate_arn: str = None,
         health_check_path: str = "/",
         health_check_interval: int = 1,  # max is 5
         enable_https: bool = False,
         **kwargs,
     ) -> None:
-        super().__init__(scope, construct_id, vpc, cluster, props, **kwargs)
+        super().__init__(
+            scope, construct_id, vpc, cluster, props, ecs_security_group, **kwargs
+        )
 
         if enable_https and not certificate_arn:
             raise ValueError(
@@ -251,7 +255,6 @@ class LoadBalancedServiceStack(ServiceStack):
                 "HttpsListener",
                 load_balancer=load_balancer,
                 port=ALB_HTTPS_LISTENER_PORT,
-                open=True,
                 protocol=elbv2.ApplicationProtocol.HTTPS,
                 certificates=[self.cert],
             )
@@ -294,7 +297,6 @@ class LoadBalancedServiceStack(ServiceStack):
                 "HttpListener",
                 load_balancer=load_balancer,
                 port=ALB_HTTP_LISTENER_PORT,
-                open=True,
                 protocol=elbv2.ApplicationProtocol.HTTP,
             )
 

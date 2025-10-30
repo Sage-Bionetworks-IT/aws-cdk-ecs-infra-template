@@ -15,12 +15,21 @@ class LoadBalancerStack(cdk.Stack):
     """
 
     def __init__(
-        self, scope: Construct, construct_id: str, vpc: ec2.Vpc, **kwargs
+        self,
+        scope: Construct,
+        construct_id: str,
+        vpc: ec2.Vpc,
+        alb_security_group: ec2.SecurityGroup,
+        **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         self.alb = elbv2.ApplicationLoadBalancer(
-            self, "AppLoadBalancer", vpc=vpc, internet_facing=True
+            self,
+            "AppLoadBalancer",
+            vpc=vpc,
+            internet_facing=True,
+            security_group=alb_security_group,
         )
 
         # WAF to protect against common web attacks
