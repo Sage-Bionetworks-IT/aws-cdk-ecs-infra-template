@@ -344,3 +344,44 @@ The workflow for continuous integration:
 * CI deploys changes to the prod environment (prod.app.io) in the AWS prod account.
 
 ![CI deployment workflow](docs/ci-deployment-workflow.png)
+
+
+
+# GuardDuty VPC Endpoint and Stack Deletion
+
+## Problem
+
+When destroying CloudFormation stacks that use ECS Fargate with GuardDuty
+Runtime Monitoring enabled, VPC deletion fails with errors like:
+
+```
+The subnet 'subnet-xxx' has dependencies and cannot be deleted.
+The vpc 'vpc-xxx' has dependencies and cannot be deleted.
+```
+
+## Root Cause
+
+AWS GuardDuty ECS Runtime Monitoring automatically creates AWS-managed
+resources outside of CloudFormation:
+
+1. **VPC Endpoint**: `com.amazonaws.us-east-1.guardduty-data` (Interface endpoint)
+
+   - Creates Elastic Network Interfaces (ENIs) in private subnets
+   - Required for GuardDuty agent sidecar containers to communicate with GuardDuty service
+
+2. **Security Group**: `GuardDutyManagedSecurityGroup-vpc-*`
+   - Attached to the GuardDuty VPC endpoint
+   - Allows traffic between ECS tasks and GuardDuty service
+
+These resources are created when you:
+
+- Enable GuardDuty Runtime Monitoring for ECS
+- Deploy Fargate tasks (which automatically get GuardDuty agent sidecar containers)
+
+Because these resources are created outside CloudFormation, they are
+**not tracked in the CDK stack** and don't get deleted when you destroy
+the stack, causing the VPC deletion to fail.
+
+The solution is to create the VPC endpoint in the [network stack](./scr/network_stack.py)
+so that it can be managed by this CDK project which will allow
+it to delete the resource.
