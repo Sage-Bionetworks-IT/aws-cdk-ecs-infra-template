@@ -285,7 +285,7 @@ the stack, causing the VPC deletion to fail.
 
 #### Solution
 
-Create the VPC endpoint in the [network stack](./scr/network_stack.py)
+Create the VPC endpoint in the [network stack](./src/network_stack.py)
 so that it can be managed by this CDK project which will allow
 the CDK to destroy the resource.
 
