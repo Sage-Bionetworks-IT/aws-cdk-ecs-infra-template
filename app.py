@@ -2,6 +2,7 @@ import aws_cdk as cdk
 
 from src.ecs_stack import EcsStack
 from src.load_balancer_stack import LoadBalancerStack
+from src.monitoring_stack import MonitoringStack
 from src.network_stack import NetworkStack
 from src.service_props import ServiceProps
 from src.service_stack import LoadBalancedServiceStack
@@ -14,6 +15,7 @@ STACK_NAME_PREFIX = f"app-{env_name}"
 FQDN = config["FQDN"]
 TAGS = config["TAGS"]
 APP_VERSION = "latest"
+MONITORING_CONFIG = config.get("MONITORING", {})
 
 # recursively apply tags to all stack resources
 if TAGS:
@@ -31,6 +33,7 @@ ecs_stack = EcsStack(
     construct_id=f"{STACK_NAME_PREFIX}-ecs",
     vpc=network_stack.vpc,
     namespace=FQDN,
+    container_insights=bool(MONITORING_CONFIG.get("notification_email")),
 )
 
 # From AWS docs https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect-concepts-deploy.html
@@ -63,5 +66,17 @@ app_stack = LoadBalancedServiceStack(
     props=app_props,
     load_balancer=load_balancer_stack.alb,
 )
+
+if MONITORING_CONFIG.get("notification_email"):
+    monitoring_stack = MonitoringStack(
+        scope=cdk_app,
+        construct_id=f"{STACK_NAME_PREFIX}-monitoring",
+        service=app_stack.service,
+        cluster=ecs_stack.cluster,
+        load_balancer=load_balancer_stack.alb,
+        target_group=app_stack.target_group,
+        monitoring_config=MONITORING_CONFIG,
+    )
+    monitoring_stack.add_dependency(app_stack)
 
 cdk_app.synth()

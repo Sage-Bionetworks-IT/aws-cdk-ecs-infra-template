@@ -223,6 +223,201 @@ TargetHostName: !CopyValue [!Sub 'app-dev-load-balancer-dns', !Ref DnTDevAccount
 > Setting up the DNS cname should be done at the very end of this infra setup
 
 
+## Monitoring (Optional)
+
+This template includes an opt-in monitoring stack that provides CloudWatch alarms,
+SNS notifications, and a CloudWatch dashboard for your ECS service. **No monitoring
+resources are created unless you explicitly configure them.**
+
+### How It Fits Together
+
+When monitoring is enabled, the template creates a fifth CloudFormation stack
+(`app-{env}-monitoring`) that references resources from the other stacks. It also
+enables [ECS Container Insights (Enhanced)](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/ContainerInsights.html)
+on the ECS cluster, which is required for the RunningTaskCount metric.
+
+```mermaid
+graph TB
+    subgraph "Configuration"
+        YAML["Environment YAML<br/>(e.g. dev.yaml)"]
+    end
+
+    subgraph "app-{env}-ecs"
+        CLUSTER["ECS Cluster<br/>(Container Insights: Enhanced)"]
+    end
+
+    subgraph "app-{env}-app"
+        ECS["ECS Fargate Service"]
+        TG["ALB Target Group"]
+    end
+
+    subgraph "app-{env}-load-balancer"
+        ALB["Application Load Balancer"]
+    end
+
+    subgraph "app-{env}-monitoring (new)"
+        SNS["SNS Topic"]
+        EMAIL["Email Subscription"]
+        SLACK["Slack Lambda<br/>(optional)"]
+        ALARMS["CloudWatch Alarms (7)"]
+        DASH["CloudWatch Dashboard<br/>(optional)"]
+    end
+
+    YAML -->|MONITORING config present| CLUSTER
+    YAML -->|MONITORING config| SNS
+    SNS --> EMAIL
+    SNS --> SLACK
+    ALARMS -->|alarm action| SNS
+    ECS -->|CPU, Memory metrics| ALARMS
+    ALB -->|5xx, P99 latency metrics| ALARMS
+    TG -->|Healthy/Unhealthy host metrics| ALARMS
+    CLUSTER -->|Running task count| ALARMS
+    ECS --> DASH
+    ALB --> DASH
+    TG --> DASH
+```
+
+> [!NOTE]
+> The monitoring stack is designed for `LoadBalancedServiceStack` (the default
+> in this template). It requires an ALB target group for the healthy/unhealthy
+> host alarms. If you modify the template to use the base `ServiceStack` without
+> an ALB, you will need to adapt the monitoring stack accordingly.
+
+> [!NOTE]
+> Enabling monitoring turns on
+> [ECS Container Insights (Enhanced)](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/ContainerInsights.html)
+> on the ECS cluster. This adds a small cost (~$0.50/container/month) but is
+> required for the RunningTaskCount metric and provides richer observability.
+
+### Alarm Coverage
+
+```mermaid
+classDiagram
+    class ECSAlarms {
+        +CPU Utilization High >=80%
+        +Memory Utilization High >=80%
+        +Running Tasks Zero ~lt~1
+    }
+    class ALBAlarms {
+        +5xx Error Count >=10 per 5min
+        +P99 Latency >=5s
+    }
+    class TargetGroupAlarms {
+        +Unhealthy Host Count >=1
+        +Healthy Host Count ~lt~1
+    }
+    class SNSTopic {
+        +Email Subscription
+        +Slack Lambda (optional)
+    }
+
+    ECSAlarms --> SNSTopic : alarm action
+    ALBAlarms --> SNSTopic : alarm action
+    TargetGroupAlarms --> SNSTopic : alarm action
+```
+
+### Enabling Monitoring
+
+Add a `MONITORING` section to your environment config file (e.g., `config/dev.yaml`).
+At minimum, set `notification_email` to activate the monitoring stack:
+
+```yaml
+MONITORING:
+  notification_email: "team@example.com"
+```
+
+This creates:
+- An SNS topic with an email subscription (you must confirm the subscription via email)
+- 7 CloudWatch alarms with sensible default thresholds
+- A CloudWatch dashboard with ECS, ALB, and health widgets
+- ECS Container Insights (Enhanced) on the cluster
+
+### Full Configuration Reference
+
+All fields except `notification_email` are optional:
+
+```yaml
+MONITORING:
+  notification_email: "team@example.com"       # Required - enables the monitoring stack
+  slack_webhook_url: ""                         # Optional - Slack incoming webhook URL for alerts
+  enable_dashboard: true                        # Optional - creates a CloudWatch dashboard (default: true)
+  alarms:                                       # Optional - override default alarm thresholds
+    ecs_cpu_threshold: 80                       # CPU utilization % (default: 80)
+    ecs_memory_threshold: 80                    # Memory utilization % (default: 80)
+    alb_5xx_threshold: 10                       # 5xx error count per 5min (default: 10)
+    alb_p99_latency_threshold: 5                # P99 response time in seconds (default: 5)
+    unhealthy_host_threshold: 1                 # Unhealthy host count to trigger alarm (default: 1)
+    healthy_host_min: 1                         # Minimum healthy hosts before alarm (default: 1)
+    running_task_min: 1                         # Minimum running tasks before alarm (default: 1)
+```
+
+You can override individual alarm thresholds without specifying all of them.
+For example, to only tighten the CPU threshold for production:
+
+```yaml
+# config/prod.yaml
+MONITORING:
+  notification_email: "oncall@example.com"
+  alarms:
+    ecs_cpu_threshold: 70
+```
+
+### Notification Flow
+
+```mermaid
+sequenceDiagram
+    participant CW as CloudWatch Metric
+    participant AL as CloudWatch Alarm
+    participant SNS as SNS Topic
+    participant EM as Email
+    participant SL as Slack Lambda
+
+    CW->>AL: Metric breaches threshold
+    AL->>SNS: Publish alarm notification
+    SNS->>EM: Send email to notification_email
+    opt slack_webhook_url configured
+        SNS->>SL: Invoke Lambda
+        SL->>SL: POST to Slack webhook
+    end
+    Note over CW,AL: When metric recovers
+    CW->>AL: Metric returns to normal
+    AL->>SNS: Publish OK notification
+    SNS->>EM: Send recovery email
+```
+
+> [!NOTE]
+> After deployment, you must confirm the SNS email subscription by clicking the
+> link in the confirmation email sent to `notification_email`. Until confirmed,
+> no email alerts will be delivered.
+
+### Dashboard
+
+When enabled (default), the CloudWatch dashboard provides three sections:
+
+| Section | Widgets |
+|---------|---------|
+| **ECS Service** | CPU utilization, Memory utilization, Running task count |
+| **Load Balancer** | Requests & errors (4xx/5xx), Target response time (p50/p90/p99) |
+| **Health** | Healthy/unhealthy host count, Active connections, Running tasks alarm |
+
+After deployment, the dashboard URL is printed as a CloudFormation output.
+You can also find it in the AWS Console under CloudFormation > Stacks >
+`app-{env}-monitoring` > Outputs > `DashboardUrl`.
+
+### Disabling Monitoring
+
+To disable monitoring, remove or comment out the `MONITORING` section
+from your environment config file. On the next deployment, you can delete the
+monitoring stack:
+
+```console
+cdk destroy app-{env}-monitoring --context env={env}
+```
+
+> [!NOTE]
+> Removing the `MONITORING` config also disables Container Insights on the ECS
+> cluster on the next deploy, removing its associated cost.
+
 ## Debugging
 
 Generally CDK deployments will create cloudformation events during a CDK deploy.

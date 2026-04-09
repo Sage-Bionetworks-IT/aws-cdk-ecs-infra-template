@@ -4,3 +4,18 @@ FQDN: stage.mydomain.io
 # Optional
 # CERTIFICATE_ARN: >-
 #   arn:aws:acm:us-east-1:XXXXXXXXX:certificate/69b3ba97-b382-4648-8f94-a250b77b4994
+
+# Uncomment to enable monitoring (CloudWatch alarms, dashboard, SNS notifications).
+# At minimum, set notification_email to activate the monitoring stack.
+# MONITORING:
+#   notification_email: "team-stage@example.com"  # Required - enables the monitoring stack
+#   slack_webhook_url: ""                          # Optional - Slack incoming webhook for alerts
+#   enable_dashboard: true                         # Optional - creates a CloudWatch dashboard (default: true)
+#   alarms:                                        # Optional - override default thresholds
+#     ecs_cpu_threshold: 80                        # CPU utilization % (default: 80)
+#     ecs_memory_threshold: 80                     # Memory utilization % (default: 80)
+#     alb_5xx_threshold: 10                        # 5xx count per 5min (default: 10)
+#     alb_p99_latency_threshold: 5                 # P99 latency in seconds (default: 5)
+#     unhealthy_host_threshold: 1                  # Unhealthy host count (default: 1)
+#     healthy_host_min: 1                          # Min healthy hosts (default: 1)
+#     running_task_min: 1                          # Min running tasks (default: 1)

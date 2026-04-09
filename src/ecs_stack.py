@@ -19,7 +19,8 @@ class EcsStack(cdk.Stack):
         construct_id: str,
         vpc: ec2.Vpc,
         namespace: str,
-        **kwargs
+        container_insights: bool = False,
+        **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
@@ -31,4 +32,7 @@ class EcsStack(cdk.Stack):
                 name=namespace,
                 use_for_service_connect=True,
             ),
+            container_insights_v2=ecs.ContainerInsights.ENHANCED
+            if container_insights
+            else ecs.ContainerInsights.DISABLED,
         )
