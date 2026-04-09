@@ -32,7 +32,9 @@ class EcsStack(cdk.Stack):
                 name=namespace,
                 use_for_service_connect=True,
             ),
-            container_insights_v2=ecs.ContainerInsights.ENHANCED
-            if container_insights
-            else ecs.ContainerInsights.DISABLED,
+            container_insights_v2=(
+                ecs.ContainerInsights.ENHANCED
+                if container_insights
+                else ecs.ContainerInsights.DISABLED
+            ),
         )

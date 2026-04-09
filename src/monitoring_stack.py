@@ -57,9 +57,7 @@ class MonitoringStack(cdk.Stack):
             self, "AlarmTopic", display_name=f"{construct_id}-alarms"
         )
 
-        self.alarm_topic.add_subscription(
-            subs.EmailSubscription(notification_email)
-        )
+        self.alarm_topic.add_subscription(subs.EmailSubscription(notification_email))
 
         if slack_webhook_url:
             slack_handler = lambda_.Function(
@@ -67,14 +65,10 @@ class MonitoringStack(cdk.Stack):
                 "SlackNotifier",
                 runtime=lambda_.Runtime.PYTHON_3_12,
                 handler="index.handler",
-                code=lambda_.Code.from_inline(
-                    _slack_lambda_code(slack_webhook_url)
-                ),
+                code=lambda_.Code.from_inline(_slack_lambda_code(slack_webhook_url)),
                 timeout=cdk.Duration.seconds(10),
             )
-            self.alarm_topic.add_subscription(
-                subs.LambdaSubscription(slack_handler)
-            )
+            self.alarm_topic.add_subscription(subs.LambdaSubscription(slack_handler))
 
         cdk.CfnOutput(
             self,
@@ -224,9 +218,7 @@ class MonitoringStack(cdk.Stack):
 
             # -- ECS Service section --
             dashboard.add_widgets(
-                cw.TextWidget(
-                    markdown="# ECS Service", width=24, height=1
-                )
+                cw.TextWidget(markdown="# ECS Service", width=24, height=1)
             )
             dashboard.add_widgets(
                 cw.GraphWidget(
@@ -270,9 +262,7 @@ class MonitoringStack(cdk.Stack):
 
             # -- Load Balancer section --
             dashboard.add_widgets(
-                cw.TextWidget(
-                    markdown="# Load Balancer", width=24, height=1
-                )
+                cw.TextWidget(markdown="# Load Balancer", width=24, height=1)
             )
             dashboard.add_widgets(
                 cw.GraphWidget(
@@ -325,9 +315,7 @@ class MonitoringStack(cdk.Stack):
 
             # -- Health section --
             dashboard.add_widgets(
-                cw.TextWidget(
-                    markdown="# Health", width=24, height=1
-                )
+                cw.TextWidget(markdown="# Health", width=24, height=1)
             )
             dashboard.add_widgets(
                 cw.GraphWidget(

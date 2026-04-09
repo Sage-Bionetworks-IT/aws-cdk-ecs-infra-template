@@ -18,7 +18,9 @@ def _create_monitoring_template(monitoring_config=None):
 
     app = cdk.App()
     network = NetworkStack(app, "Net", vpc_cidr="10.0.0.0/24")
-    ecs = EcsStack(app, "Ecs", vpc=network.vpc, namespace="test.io", container_insights=True)
+    ecs = EcsStack(
+        app, "Ecs", vpc=network.vpc, namespace="test.io", container_insights=True
+    )
     lb = LoadBalancerStack(app, "Lb", vpc=network.vpc)
 
     props = ServiceProps(
