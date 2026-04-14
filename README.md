@@ -318,11 +318,13 @@ classDiagram
 
 ### Enabling Monitoring
 
-Add a `MONITORING` section to your environment config file (e.g., `config/dev.yaml`).
-At minimum, set `notification_email` to activate the monitoring stack:
+Default monitoring settings (disabled) live in `config/base.yaml`. To activate,
+override `enabled` and `notification_email` in your environment config:
 
 ```yaml
+# config/dev.yaml
 MONITORING:
+  enabled: true
   notification_email: "team@example.com"
 ```
 
@@ -334,11 +336,12 @@ This creates:
 
 ### Full Configuration Reference
 
-All fields except `notification_email` are optional:
+All fields except `enabled` and `notification_email` have defaults in `config/base.yaml`:
 
 ```yaml
 MONITORING:
-  notification_email: "team@example.com"       # Required - enables the monitoring stack
+  enabled: true                                # Required - activates the monitoring stack
+  notification_email: "team@example.com"       # Required - SNS email subscription
   slack_webhook_url: ""                         # Optional - Slack incoming webhook URL for alerts
   enable_dashboard: true                        # Optional - creates a CloudWatch dashboard (default: true)
   alarms:                                       # Optional - override default alarm thresholds
@@ -357,6 +360,7 @@ For example, to only tighten the CPU threshold for production:
 ```yaml
 # config/prod.yaml
 MONITORING:
+  enabled: true
   notification_email: "oncall@example.com"
   alarms:
     ecs_cpu_threshold: 70

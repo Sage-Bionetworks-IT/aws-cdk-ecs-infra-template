@@ -13,6 +13,7 @@ def _create_monitoring_template(monitoring_config=None):
     """Helper to create a MonitoringStack and return its synthesized template."""
     if monitoring_config is None:
         monitoring_config = {
+            "enabled": True,
             "notification_email": "test@example.com",
         }
 
@@ -77,6 +78,7 @@ def test_monitoring_stack_creates_dashboard_by_default():
 def test_monitoring_stack_no_dashboard_when_disabled():
     template = _create_monitoring_template(
         monitoring_config={
+            "enabled": True,
             "notification_email": "test@example.com",
             "enable_dashboard": False,
         }
@@ -87,6 +89,7 @@ def test_monitoring_stack_no_dashboard_when_disabled():
 def test_monitoring_stack_custom_cpu_threshold():
     template = _create_monitoring_template(
         monitoring_config={
+            "enabled": True,
             "notification_email": "test@example.com",
             "alarms": {"ecs_cpu_threshold": 70},
         }
@@ -108,6 +111,7 @@ def test_monitoring_stack_no_slack_lambda_without_webhook():
 def test_monitoring_stack_creates_slack_lambda_with_webhook():
     template = _create_monitoring_template(
         monitoring_config={
+            "enabled": True,
             "notification_email": "test@example.com",
             "slack_webhook_url": "https://hooks.slack.com/services/T/B/x",
         }

@@ -33,7 +33,7 @@ ecs_stack = EcsStack(
     construct_id=f"{STACK_NAME_PREFIX}-ecs",
     vpc=network_stack.vpc,
     namespace=FQDN,
-    container_insights=bool(MONITORING_CONFIG.get("notification_email")),
+    container_insights=bool(MONITORING_CONFIG.get("enabled", False)),
 )
 
 # From AWS docs https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect-concepts-deploy.html
@@ -67,7 +67,7 @@ app_stack = LoadBalancedServiceStack(
     load_balancer=load_balancer_stack.alb,
 )
 
-if MONITORING_CONFIG.get("notification_email"):
+if MONITORING_CONFIG.get("enabled", False):
     monitoring_stack = MonitoringStack(
         scope=cdk_app,
         construct_id=f"{STACK_NAME_PREFIX}-monitoring",

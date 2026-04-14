@@ -28,8 +28,8 @@ class MonitoringStack(cdk.Stack):
     Optional monitoring stack that creates CloudWatch alarms, an SNS notification
     topic, and an optional CloudWatch dashboard for ECS services.
 
-    This stack is opt-in: it is only created when MONITORING.notification_email
-    is set in the environment config.
+    This stack is opt-in: it is only created when MONITORING.enabled is true
+    in the environment config.
     """
 
     def __init__(
