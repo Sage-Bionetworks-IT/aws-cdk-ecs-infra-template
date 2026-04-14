@@ -10,3 +10,6 @@ FQDN: prod.mydomain.io
 # MONITORING:
 #   enabled: true
 #   notification_email: "oncall@example.com"
+#   alarms:
+#     ecs_cpu_threshold: 70
+#     ecs_memory_threshold: 70
