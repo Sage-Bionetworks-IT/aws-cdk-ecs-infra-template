@@ -119,7 +119,7 @@ class MonitoringStack(cdk.Stack):
         error_5xx_alarm = cw.Alarm(
             self,
             "Alb5xxErrors",
-            metric=load_balancer.metric_http_code_elb(
+            metric=load_balancer.metrics.http_code_elb(
                 code=elbv2.HttpCodeElb.ELB_5XX_COUNT,
                 period=cdk.Duration.minutes(5),
                 statistic="Sum",
@@ -136,7 +136,7 @@ class MonitoringStack(cdk.Stack):
         p99_alarm = cw.Alarm(
             self,
             "AlbP99Latency",
-            metric=load_balancer.metric_target_response_time(
+            metric=load_balancer.metrics.target_response_time(
                 period=cdk.Duration.minutes(1),
                 statistic="p99",
             ),
@@ -153,7 +153,7 @@ class MonitoringStack(cdk.Stack):
         unhealthy_alarm = cw.Alarm(
             self,
             "UnhealthyHosts",
-            metric=target_group.metric_unhealthy_host_count(
+            metric=target_group.metrics.unhealthy_host_count(
                 period=cdk.Duration.minutes(1),
                 statistic="Maximum",
             ),
@@ -170,7 +170,7 @@ class MonitoringStack(cdk.Stack):
         healthy_alarm = cw.Alarm(
             self,
             "HealthyHostsLow",
-            metric=target_group.metric_healthy_host_count(
+            metric=target_group.metrics.healthy_host_count(
                 period=cdk.Duration.minutes(1),
                 statistic="Minimum",
             ),
@@ -252,20 +252,20 @@ class MonitoringStack(cdk.Stack):
                 cw.GraphWidget(
                     title="Requests & Errors",
                     left=[
-                        load_balancer.metric_request_count(
+                        load_balancer.metrics.request_count(
                             statistic="Sum",
                             label="Requests",
                             period=cdk.Duration.minutes(1),
                         )
                     ],
                     right=[
-                        load_balancer.metric_http_code_elb(
+                        load_balancer.metrics.http_code_elb(
                             code=elbv2.HttpCodeElb.ELB_4XX_COUNT,
                             statistic="Sum",
                             label="4XX",
                             period=cdk.Duration.minutes(1),
                         ),
-                        load_balancer.metric_http_code_elb(
+                        load_balancer.metrics.http_code_elb(
                             code=elbv2.HttpCodeElb.ELB_5XX_COUNT,
                             statistic="Sum",
                             label="5XX",
@@ -277,17 +277,17 @@ class MonitoringStack(cdk.Stack):
                 cw.GraphWidget(
                     title="Target Response Time",
                     left=[
-                        load_balancer.metric_target_response_time(
+                        load_balancer.metrics.target_response_time(
                             statistic="p50",
                             label="p50",
                             period=cdk.Duration.minutes(1),
                         ),
-                        load_balancer.metric_target_response_time(
+                        load_balancer.metrics.target_response_time(
                             statistic="p90",
                             label="p90",
                             period=cdk.Duration.minutes(1),
                         ),
-                        load_balancer.metric_target_response_time(
+                        load_balancer.metrics.target_response_time(
                             statistic="p99",
                             label="p99",
                             period=cdk.Duration.minutes(1),
@@ -305,12 +305,12 @@ class MonitoringStack(cdk.Stack):
                 cw.GraphWidget(
                     title="Host Health",
                     left=[
-                        target_group.metric_healthy_host_count(
+                        target_group.metrics.healthy_host_count(
                             statistic="Average",
                             label="Healthy",
                             period=cdk.Duration.minutes(1),
                         ),
-                        target_group.metric_unhealthy_host_count(
+                        target_group.metrics.unhealthy_host_count(
                             statistic="Average",
                             label="Unhealthy",
                             period=cdk.Duration.minutes(1),
@@ -321,7 +321,7 @@ class MonitoringStack(cdk.Stack):
                 cw.GraphWidget(
                     title="Active Connections",
                     left=[
-                        load_balancer.metric_active_connection_count(
+                        load_balancer.metrics.active_connection_count(
                             statistic="Sum",
                             label="Active",
                             period=cdk.Duration.minutes(1),
