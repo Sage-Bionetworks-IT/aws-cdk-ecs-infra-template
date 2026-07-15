@@ -1,4 +1,3 @@
-import json
 from typing import Any, Dict
 
 import aws_cdk as cdk
@@ -65,7 +64,8 @@ class MonitoringStack(cdk.Stack):
                 "SlackNotifier",
                 runtime=lambda_.Runtime.PYTHON_3_12,
                 handler="index.handler",
-                code=lambda_.Code.from_inline(_slack_lambda_code(slack_webhook_url)),
+                code=lambda_.Code.from_asset("src/lambda/slack_notifier"),
+                environment={"WEBHOOK_URL": slack_webhook_url},
                 timeout=cdk.Duration.seconds(10),
             )
             self.alarm_topic.add_subscription(subs.LambdaSubscription(slack_handler))
@@ -119,7 +119,7 @@ class MonitoringStack(cdk.Stack):
         error_5xx_alarm = cw.Alarm(
             self,
             "Alb5xxErrors",
-            metric=load_balancer.metric_http_code_elb(
+            metric=load_balancer.metrics.http_code_elb(
                 code=elbv2.HttpCodeElb.ELB_5XX_COUNT,
                 period=cdk.Duration.minutes(5),
                 statistic="Sum",
@@ -136,7 +136,7 @@ class MonitoringStack(cdk.Stack):
         p99_alarm = cw.Alarm(
             self,
             "AlbP99Latency",
-            metric=load_balancer.metric_target_response_time(
+            metric=load_balancer.metrics.target_response_time(
                 period=cdk.Duration.minutes(1),
                 statistic="p99",
             ),
@@ -153,7 +153,7 @@ class MonitoringStack(cdk.Stack):
         unhealthy_alarm = cw.Alarm(
             self,
             "UnhealthyHosts",
-            metric=target_group.metric_unhealthy_host_count(
+            metric=target_group.metrics.unhealthy_host_count(
                 period=cdk.Duration.minutes(1),
                 statistic="Maximum",
             ),
@@ -170,7 +170,7 @@ class MonitoringStack(cdk.Stack):
         healthy_alarm = cw.Alarm(
             self,
             "HealthyHostsLow",
-            metric=target_group.metric_healthy_host_count(
+            metric=target_group.metrics.healthy_host_count(
                 period=cdk.Duration.minutes(1),
                 statistic="Minimum",
             ),
@@ -197,10 +197,11 @@ class MonitoringStack(cdk.Stack):
                 statistic="Minimum",
             ),
             threshold=alarm_config["running_task_min"],
-            evaluation_periods=1,
+            evaluation_periods=3,
+            datapoints_to_alarm=2,
             comparison_operator=cw.ComparisonOperator.LESS_THAN_THRESHOLD,
             alarm_description="ECS service has no running tasks — service is down",
-            treat_missing_data=cw.TreatMissingData.BREACHING,
+            treat_missing_data=cw.TreatMissingData.MISSING,
         )
         running_tasks_alarm.add_alarm_action(alarm_action)
         running_tasks_alarm.add_ok_action(alarm_action)
@@ -229,7 +230,7 @@ class MonitoringStack(cdk.Stack):
                             period=cdk.Duration.minutes(1),
                         )
                     ],
-                    width=8,
+                    width=12,
                 ),
                 cw.GraphWidget(
                     title="Memory Utilization (%)",
@@ -239,24 +240,7 @@ class MonitoringStack(cdk.Stack):
                             period=cdk.Duration.minutes(1),
                         )
                     ],
-                    width=8,
-                ),
-                cw.GraphWidget(
-                    title="Running Task Count",
-                    left=[
-                        cw.Metric(
-                            namespace="ECS/ContainerInsights",
-                            metric_name="RunningTaskCount",
-                            dimensions_map={
-                                "ClusterName": cluster.cluster_name,
-                                "ServiceName": service.service_name,
-                            },
-                            period=cdk.Duration.minutes(1),
-                            statistic="Average",
-                            label="Running Tasks",
-                        )
-                    ],
-                    width=8,
+                    width=12,
                 ),
             )
 
@@ -268,20 +252,20 @@ class MonitoringStack(cdk.Stack):
                 cw.GraphWidget(
                     title="Requests & Errors",
                     left=[
-                        load_balancer.metric_request_count(
+                        load_balancer.metrics.request_count(
                             statistic="Sum",
                             label="Requests",
                             period=cdk.Duration.minutes(1),
                         )
                     ],
                     right=[
-                        load_balancer.metric_http_code_elb(
+                        load_balancer.metrics.http_code_elb(
                             code=elbv2.HttpCodeElb.ELB_4XX_COUNT,
                             statistic="Sum",
                             label="4XX",
                             period=cdk.Duration.minutes(1),
                         ),
-                        load_balancer.metric_http_code_elb(
+                        load_balancer.metrics.http_code_elb(
                             code=elbv2.HttpCodeElb.ELB_5XX_COUNT,
                             statistic="Sum",
                             label="5XX",
@@ -293,17 +277,17 @@ class MonitoringStack(cdk.Stack):
                 cw.GraphWidget(
                     title="Target Response Time",
                     left=[
-                        load_balancer.metric_target_response_time(
+                        load_balancer.metrics.target_response_time(
                             statistic="p50",
                             label="p50",
                             period=cdk.Duration.minutes(1),
                         ),
-                        load_balancer.metric_target_response_time(
+                        load_balancer.metrics.target_response_time(
                             statistic="p90",
                             label="p90",
                             period=cdk.Duration.minutes(1),
                         ),
-                        load_balancer.metric_target_response_time(
+                        load_balancer.metrics.target_response_time(
                             statistic="p99",
                             label="p99",
                             period=cdk.Duration.minutes(1),
@@ -321,12 +305,12 @@ class MonitoringStack(cdk.Stack):
                 cw.GraphWidget(
                     title="Host Health",
                     left=[
-                        target_group.metric_healthy_host_count(
+                        target_group.metrics.healthy_host_count(
                             statistic="Average",
                             label="Healthy",
                             period=cdk.Duration.minutes(1),
                         ),
-                        target_group.metric_unhealthy_host_count(
+                        target_group.metrics.unhealthy_host_count(
                             statistic="Average",
                             label="Unhealthy",
                             period=cdk.Duration.minutes(1),
@@ -337,7 +321,7 @@ class MonitoringStack(cdk.Stack):
                 cw.GraphWidget(
                     title="Active Connections",
                     left=[
-                        load_balancer.metric_active_connection_count(
+                        load_balancer.metrics.active_connection_count(
                             statistic="Sum",
                             label="Active",
                             period=cdk.Duration.minutes(1),
@@ -345,9 +329,28 @@ class MonitoringStack(cdk.Stack):
                     ],
                     width=8,
                 ),
-                cw.AlarmWidget(
+                cw.GraphWidget(
                     title="Running Tasks (alarm if zero)",
-                    alarm=running_tasks_alarm,
+                    left=[
+                        cw.Metric(
+                            namespace="ECS/ContainerInsights",
+                            metric_name="RunningTaskCount",
+                            dimensions_map={
+                                "ClusterName": cluster.cluster_name,
+                                "ServiceName": service.service_name,
+                            },
+                            period=cdk.Duration.minutes(1),
+                            statistic="Minimum",
+                            label="Running Tasks",
+                        )
+                    ],
+                    left_annotations=[
+                        cw.HorizontalAnnotation(
+                            value=alarm_config["running_task_min"],
+                            label=f"Alarm threshold ({alarm_config['running_task_min']})",
+                            color=cw.Color.RED,
+                        )
+                    ],
                     width=8,
                 ),
             )
@@ -362,28 +365,3 @@ class MonitoringStack(cdk.Stack):
                 value=dashboard_url,
                 description="CloudWatch dashboard URL",
             )
-
-
-def _slack_lambda_code(webhook_url: str) -> str:
-    """Return inline Python code for a Lambda that posts SNS messages to Slack."""
-    safe_url = json.dumps(webhook_url)
-    return f"""\
-import json
-import urllib.request
-
-WEBHOOK_URL = {safe_url}
-
-def handler(event, context):
-    for record in event["Records"]:
-        sns_message = record["Sns"]
-        payload = json.dumps({{
-            "text": f"*{{sns_message['Subject']}}*\\n{{sns_message['Message']}}"
-        }}).encode("utf-8")
-        req = urllib.request.Request(
-            WEBHOOK_URL,
-            data=payload,
-            headers={{"Content-Type": "application/json"}},
-        )
-        urllib.request.urlopen(req)
-    return {{"statusCode": 200}}
-"""
