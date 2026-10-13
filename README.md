@@ -107,7 +107,8 @@ configuration to use.  This is done by passing a context variable to
 CDK, which loads environment-specific parameters.
 
 Create a configuration file in the [config folder](./config) for each environment
-(e.g., `dev.yaml`, `prod.yaml`).  Both yaml and json files are supported.
+(e.g., `dev.yaml`, `prod.yaml`).  Both yaml and json files are supported, but
+only one file may exist per environment (`.yaml`/`.yml` _or_ `.json`).
 The supported environments are dev, stage, and prod.
 
 To synthesize or deploy using the `prod` environment configuration:
@@ -116,13 +117,44 @@ To synthesize or deploy using the `prod` environment configuration:
 cdk synth --context env=prod
 ```
 
-There is also an optional base configuration file that is always loaded
-and merged with one of the passed in environment configuration.
+There is also an optional base configuration file (`config/base.yaml`) that is
+always loaded and merged with the passed-in environment configuration.
 
 The values from the environment-specific configuration file will
 override those in the base configuration file if there are conflicts.
 For example, if both files define `TAGS`, the value from `dev.yaml`
-will take precedence.
+will take precedence. Merging is deep, so you can override a single
+nested value (such as one threshold inside the `MONITORING` block)
+without restating the whole block.
+
+Configuration is loaded with
+[pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/).
+
+### Overriding configuration with environment variables
+
+Any setting can be overridden at deploy time with an operating-system
+environment variable, which takes precedence over both the base and
+environment configuration files. This lets CI or a developer change a value
+without editing config.
+
+Variables use the `APP_` prefix, and nested values use `__` (double
+underscore) as the separator:
+
+```console
+# Override FQDN for this run
+APP_FQDN=example.com cdk synth --context env=dev
+
+# Override a single nested monitoring value
+APP_MONITORING__ALARMS__ECS_CPU_THRESHOLD=90 cdk deploy --context env=prod
+
+# Enable monitoring without editing the config file
+APP_MONITORING__ENABLED=true \
+  APP_MONITORING__NOTIFICATION_EMAIL=team@example.com \
+  cdk deploy --context env=dev
+```
+
+The precedence order, highest first, is: environment variables, then the
+environment config file, then `config/base.yaml`.
 
 
 > [!NOTE]
@@ -355,6 +387,11 @@ MONITORING:
   enabled: true
   notification_email: "team@example.com"
 ```
+
+You can also enable or tune monitoring at deploy time without editing config,
+using environment variables (see
+[Overriding configuration with environment variables](#overriding-configuration-with-environment-variables)),
+for example `APP_MONITORING__ENABLED=true`.
 
 This creates:
 - An SNS topic with an email subscription (you must confirm the subscription via email)
