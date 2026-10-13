@@ -24,7 +24,7 @@ nested delimiter, e.g.::
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type
 
 from pydantic import BaseModel, Field
 from pydantic_settings import (
@@ -83,6 +83,25 @@ class AppSettings(BaseSettings):
     TAGS: Dict[str, Any] = Field(default_factory=dict)
     MONITORING: MonitoringConfig = Field(default_factory=MonitoringConfig)
 
+    # Per-construction list of config files, resolved by
+    # ``load_context_config``. Stashed on the class for the duration of
+    # ``__init__`` so ``settings_customise_sources`` (a classmethod that
+    # only receives ``settings_cls``) can read it, without it ever becoming
+    # an ``init_settings`` kwarg that would leak into ``extra`` fields.
+    _config_files_ctx: ClassVar[List[Path]] = []
+
+    def __init__(self, _config_files: Optional[List[Path]] = None, **kwargs: Any):
+        # Pull the private carrier out of the init kwargs so it never reaches
+        # ``init_settings`` (and therefore never leaks into ``extra`` with
+        # ``extra="allow"``). Stash it on the class for the source-building
+        # classmethod, then restore the previous value afterwards.
+        previous = type(self)._config_files_ctx
+        type(self)._config_files_ctx = _config_files or []
+        try:
+            super().__init__(**kwargs)
+        finally:
+            type(self)._config_files_ctx = previous
+
     @classmethod
     def settings_customise_sources(
         cls,
@@ -92,9 +111,11 @@ class AppSettings(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> Tuple[PydanticBaseSettingsSource, ...]:
-        # Highest priority first. OS environment variables win over the file
-        # layers; ``init_settings`` carries the per-call config file list that
-        # ``load_context_config`` resolved (base first, env file last).
+        # Highest priority first. OS environment variables win over everything
+        # (the documented CI / deploy-time override layer), then direct
+        # constructor arguments (``init_settings``), then the file layers.
+        # ``load_context_config`` resolves the per-call config file list (base
+        # first, env file last) and stashes it on the class.
         #
         # Each file gets a source matching its extension (YAML or JSON).
         # BaseSettings deep-merges the state of these sources, so nested values
@@ -102,7 +123,7 @@ class AppSettings(BaseSettings):
         # the rest of the block. Sources listed earlier win, so the env file
         # (listed last in ``_config_files``) is given a higher-priority source
         # than ``base.yaml``.
-        config_files: List[Path] = init_settings.init_kwargs.get("_config_files", [])
+        config_files: List[Path] = cls._config_files_ctx
 
         file_sources: List[PydanticBaseSettingsSource] = []
         for path in reversed(config_files):
@@ -115,7 +136,7 @@ class AppSettings(BaseSettings):
                     YamlConfigSettingsSource(settings_cls, yaml_file=path)
                 )
 
-        return (env_settings, *file_sources)
+        return (env_settings, init_settings, *file_sources)
 
     # ------------------------------------------------------------------ #
     # Backwards-compatible, dict-like access so existing call sites that
