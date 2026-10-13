@@ -78,7 +78,14 @@ class TestLoadContextConfig:
         """load_context_config returns a typed AppSettings object."""
         with tempfile.TemporaryDirectory() as temp_dir:
             d = Path(temp_dir)
-            _write(d, "dev.yaml", "FQDN: dev.example.com\n")
+            _write(
+                d,
+                "dev.yaml",
+                """
+                FQDN: dev.example.com
+                VPC_CIDR: 10.0.0.0/16
+                """,
+            )
             result = load_context_config("dev", temp_dir)
             assert isinstance(result, AppSettings)
             assert isinstance(result.MONITORING, MonitoringConfig)
@@ -137,6 +144,7 @@ class TestBaseAndEnvFileMerge:
                 "dev.yaml",
                 """
                 FQDN: dev.example.com
+                VPC_CIDR: 10.0.0.0/16
                 MONITORING:
                   enabled: true
                   notification_email: team@example.com
@@ -157,14 +165,28 @@ class TestBaseAndEnvFileMerge:
     def test_no_base_file_uses_env_file_only(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             d = Path(temp_dir)
-            _write(d, "dev.yaml", "FQDN: dev.example.com\n")
+            _write(
+                d,
+                "dev.yaml",
+                """
+                FQDN: dev.example.com
+                VPC_CIDR: 10.0.0.0/16
+                """,
+            )
             result = load_context_config("dev", temp_dir)
             assert result.FQDN == "dev.example.com"
 
     def test_empty_env_file_falls_back_to_base(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             d = Path(temp_dir)
-            _write(d, "base.yaml", "VPC_CIDR: 10.0.0.0/16\n")
+            _write(
+                d,
+                "base.yaml",
+                """
+                VPC_CIDR: 10.0.0.0/16
+                FQDN: base.example.com
+                """,
+            )
             _write(d, "dev.yaml", "")
             result = load_context_config("dev", temp_dir)
             assert result.VPC_CIDR == "10.0.0.0/16"
@@ -201,6 +223,7 @@ class TestJsonEnvFile:
                 json.dumps(
                     {
                         "FQDN": "dev.example.com",
+                        "VPC_CIDR": "10.0.0.0/16",
                         "MONITORING": {
                             "enabled": True,
                             "alarms": {"ecs_cpu_threshold": 42},
@@ -219,7 +242,9 @@ class TestJsonEnvFile:
     def test_env_var_overrides_json_env_file(self, monkeypatch):
         with tempfile.TemporaryDirectory() as temp_dir:
             d = Path(temp_dir)
-            (d / "dev.json").write_text(json.dumps({"FQDN": "dev.example.com"}))
+            (d / "dev.json").write_text(
+                json.dumps({"FQDN": "dev.example.com", "VPC_CIDR": "10.0.0.0/16"})
+            )
             monkeypatch.setenv("APP_FQDN", "ci.example.com")
             result = load_context_config("dev", temp_dir)
             assert result.FQDN == "ci.example.com"
@@ -231,7 +256,14 @@ class TestEnvironmentVariableOverrides:
     def test_env_var_overrides_top_level_value(self, monkeypatch):
         with tempfile.TemporaryDirectory() as temp_dir:
             d = Path(temp_dir)
-            _write(d, "base.yaml", "FQDN: base.example.com\n")
+            _write(
+                d,
+                "base.yaml",
+                """
+                FQDN: base.example.com
+                VPC_CIDR: 10.0.0.0/16
+                """,
+            )
             _write(d, "dev.yaml", "FQDN: dev.example.com\n")
 
             monkeypatch.setenv("APP_FQDN", "ci.example.com")
@@ -245,6 +277,7 @@ class TestEnvironmentVariableOverrides:
                 d,
                 "base.yaml",
                 """
+                VPC_CIDR: 10.0.0.0/16
                 MONITORING:
                   alarms:
                     ecs_cpu_threshold: 80
@@ -277,6 +310,7 @@ class TestEnvironmentVariableOverrides:
                 "dev.yaml",
                 """
                 FQDN: dev.example.com
+                VPC_CIDR: 10.0.0.0/16
                 MONITORING:
                   enabled: true
                 """,
@@ -293,7 +327,14 @@ class TestDictCompatibility:
     def test_getitem_and_get(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             d = Path(temp_dir)
-            _write(d, "dev.yaml", "FQDN: dev.example.com\n")
+            _write(
+                d,
+                "dev.yaml",
+                """
+                FQDN: dev.example.com
+                VPC_CIDR: 10.0.0.0/16
+                """,
+            )
             result = load_context_config("dev", temp_dir)
 
             assert result["FQDN"] == "dev.example.com"

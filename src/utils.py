@@ -77,8 +77,8 @@ class AppSettings(BaseSettings):
         case_sensitive=False,
     )
 
-    VPC_CIDR: str = ""
-    FQDN: str = ""
+    VPC_CIDR: str
+    FQDN: str
     CERTIFICATE_ARN: Optional[str] = None
     TAGS: Dict[str, Any] = Field(default_factory=dict)
     MONITORING: MonitoringConfig = Field(default_factory=MonitoringConfig)
@@ -96,26 +96,23 @@ class AppSettings(BaseSettings):
         # layers; ``init_settings`` carries the per-call config file list that
         # ``load_context_config`` resolved (base first, env file last).
         #
-        # Each file gets a source matching its extension (YAML or JSON), with
-        # deep_merge so nested values from later files override individual keys
-        # without discarding the rest of the block. Sources listed earlier win,
-        # so the env file (listed last in ``_config_files``) is given a
-        # higher-priority source than ``base.yaml``.
+        # Each file gets a source matching its extension (YAML or JSON).
+        # BaseSettings deep-merges the state of these sources, so nested values
+        # from higher-priority files override individual keys without discarding
+        # the rest of the block. Sources listed earlier win, so the env file
+        # (listed last in ``_config_files``) is given a higher-priority source
+        # than ``base.yaml``.
         config_files: List[Path] = init_settings.init_kwargs.get("_config_files", [])
 
         file_sources: List[PydanticBaseSettingsSource] = []
         for path in reversed(config_files):
             if path.suffix in JSON_SUFFIXES:
                 file_sources.append(
-                    JsonConfigSettingsSource(
-                        settings_cls, json_file=path, deep_merge=True
-                    )
+                    JsonConfigSettingsSource(settings_cls, json_file=path)
                 )
             else:
                 file_sources.append(
-                    YamlConfigSettingsSource(
-                        settings_cls, yaml_file=path, deep_merge=True
-                    )
+                    YamlConfigSettingsSource(settings_cls, yaml_file=path)
                 )
 
         return (env_settings, *file_sources)
@@ -123,15 +120,22 @@ class AppSettings(BaseSettings):
     # ------------------------------------------------------------------ #
     # Backwards-compatible, dict-like access so existing call sites that
     # used the old plain-dict config keep working.
+    #
+    # Access resolves only against declared/loaded configuration fields,
+    # never arbitrary attributes or methods. Nested models are returned as
+    # plain dicts so legacy nested access such as
+    # ``config["MONITORING"]["enabled"]`` keeps working, and names like
+    # ``model_dump`` are not mistaken for configuration keys.
     # ------------------------------------------------------------------ #
     def __getitem__(self, key: str) -> Any:
+        data = self.model_dump()
         try:
-            return getattr(self, key)
-        except AttributeError as exc:
+            return data[key]
+        except KeyError as exc:
             raise KeyError(key) from exc
 
     def get(self, key: str, default: Any = None) -> Any:
-        return getattr(self, key, default)
+        return self.model_dump().get(key, default)
 
 
 def load_context_config(
