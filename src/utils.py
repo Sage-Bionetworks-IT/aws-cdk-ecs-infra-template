@@ -23,8 +23,9 @@ nested delimiter, e.g.::
     APP_MONITORING__ALARMS__ECS_CPU_THRESHOLD=90
 """
 
+from contextvars import ContextVar
 from pathlib import Path
-from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from pydantic import BaseModel, Field
 from pydantic_settings import (
@@ -39,6 +40,12 @@ VALID_ENVS = ("dev", "stage", "prod")
 DEFAULT_CONFIG_DIR = "config"
 JSON_SUFFIXES = (".json",)
 YAML_SUFFIXES = (".yaml", ".yml")
+
+# Call-local carrier for the per-construction config file list. A ContextVar
+# gives each thread (and each async context) its own value, so concurrent
+# ``AppSettings`` constructions never clobber each other's file list the way a
+# shared class attribute would.
+_config_files_ctx: ContextVar[List[Path]] = ContextVar("_config_files_ctx", default=[])
 
 
 class AlarmThresholds(BaseModel):
@@ -83,24 +90,20 @@ class AppSettings(BaseSettings):
     TAGS: Dict[str, Any] = Field(default_factory=dict)
     MONITORING: MonitoringConfig = Field(default_factory=MonitoringConfig)
 
-    # Per-construction list of config files, resolved by
-    # ``load_context_config``. Stashed on the class for the duration of
-    # ``__init__`` so ``settings_customise_sources`` (a classmethod that
-    # only receives ``settings_cls``) can read it, without it ever becoming
-    # an ``init_settings`` kwarg that would leak into ``extra`` fields.
-    _config_files_ctx: ClassVar[List[Path]] = []
-
     def __init__(self, _config_files: Optional[List[Path]] = None, **kwargs: Any):
         # Pull the private carrier out of the init kwargs so it never reaches
         # ``init_settings`` (and therefore never leaks into ``extra`` with
-        # ``extra="allow"``). Stash it on the class for the source-building
-        # classmethod, then restore the previous value afterwards.
-        previous = type(self)._config_files_ctx
-        type(self)._config_files_ctx = _config_files or []
+        # ``extra="allow"``). Bind it to a module-level ContextVar for the
+        # duration of ``__init__`` so ``settings_customise_sources`` (a
+        # classmethod that only receives ``settings_cls``) can read it. The
+        # ContextVar is call-local, so concurrent constructions on other
+        # threads cannot overwrite this call's value. The token restores the
+        # previous value afterwards.
+        token = _config_files_ctx.set(_config_files or [])
         try:
             super().__init__(**kwargs)
         finally:
-            type(self)._config_files_ctx = previous
+            _config_files_ctx.reset(token)
 
     @classmethod
     def settings_customise_sources(
@@ -123,7 +126,7 @@ class AppSettings(BaseSettings):
         # the rest of the block. Sources listed earlier win, so the env file
         # (listed last in ``_config_files``) is given a higher-priority source
         # than ``base.yaml``.
-        config_files: List[Path] = cls._config_files_ctx
+        config_files: List[Path] = _config_files_ctx.get()
 
         file_sources: List[PydanticBaseSettingsSource] = []
         for path in reversed(config_files):

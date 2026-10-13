@@ -156,6 +156,12 @@ APP_MONITORING__ENABLED=true \
 The precedence order, highest first, is: environment variables, then the
 environment config file, then `config/base.yaml`.
 
+> [!NOTE]
+> The `APP_` prefix applies **only** to operating-system environment
+> variables. Inside the config files (`config/base.yaml`, `config/<env>.yaml`,
+> etc.) use the bare field names (`VPC_CIDR`, `FQDN`, `MONITORING`, ...) with
+> normal YAML/JSON nesting. Do not prefix keys in those files with `APP_`.
+
 
 > [!NOTE]
 > Ensure that `VPC_CIDR` is unique within your AWS organization.
