@@ -12,10 +12,10 @@ cdk_app = cdk.App()
 env_name = cdk_app.node.try_get_context("env") or "dev"
 config = load_context_config(env_name=env_name)
 STACK_NAME_PREFIX = f"app-{env_name}"
-FQDN = config["FQDN"]
-TAGS = config["TAGS"]
+FQDN = config.FQDN
+TAGS = config.TAGS
 APP_VERSION = "latest"
-MONITORING_CONFIG = config.get("MONITORING", {})
+MONITORING_CONFIG = config.MONITORING
 
 # recursively apply tags to all stack resources
 if TAGS:
@@ -25,7 +25,7 @@ if TAGS:
 network_stack = NetworkStack(
     scope=cdk_app,
     construct_id=f"{STACK_NAME_PREFIX}-network",
-    vpc_cidr=config["VPC_CIDR"],
+    vpc_cidr=config.VPC_CIDR,
 )
 
 ecs_stack = EcsStack(
@@ -33,7 +33,7 @@ ecs_stack = EcsStack(
     construct_id=f"{STACK_NAME_PREFIX}-ecs",
     vpc=network_stack.vpc,
     namespace=FQDN,
-    container_insights=bool(MONITORING_CONFIG.get("enabled", False)),
+    container_insights=MONITORING_CONFIG.enabled,
 )
 
 # From AWS docs https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect-concepts-deploy.html
@@ -67,7 +67,7 @@ app_stack = LoadBalancedServiceStack(
     load_balancer=load_balancer_stack.alb,
 )
 
-if MONITORING_CONFIG.get("enabled", False):
+if MONITORING_CONFIG.enabled:
     monitoring_stack = MonitoringStack(
         scope=cdk_app,
         construct_id=f"{STACK_NAME_PREFIX}-monitoring",
