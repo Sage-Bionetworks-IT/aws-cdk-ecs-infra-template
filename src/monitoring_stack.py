@@ -1,5 +1,3 @@
-from typing import Any, Dict
-
 import aws_cdk as cdk
 from aws_cdk import aws_cloudwatch as cw
 from aws_cdk import aws_cloudwatch_actions as cw_actions
@@ -10,16 +8,7 @@ from aws_cdk import aws_sns as sns
 from aws_cdk import aws_sns_subscriptions as subs
 from constructs import Construct
 
-# Default alarm thresholds applied when not specified in config
-_DEFAULT_ALARMS = {
-    "ecs_cpu_threshold": 80,
-    "ecs_memory_threshold": 80,
-    "alb_5xx_threshold": 10,
-    "alb_p99_latency_threshold": 5,
-    "unhealthy_host_threshold": 1,
-    "healthy_host_min": 1,
-    "running_task_min": 1,
-}
+from src.utils import MonitoringConfig
 
 
 class MonitoringStack(cdk.Stack):
@@ -39,15 +28,19 @@ class MonitoringStack(cdk.Stack):
         cluster: ecs.Cluster,
         load_balancer: elbv2.ApplicationLoadBalancer,
         target_group: elbv2.ApplicationTargetGroup,
-        monitoring_config: Dict[str, Any],
+        monitoring_config: MonitoringConfig,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        alarm_config = {**_DEFAULT_ALARMS, **monitoring_config.get("alarms", {})}
-        notification_email = monitoring_config["notification_email"]
-        slack_webhook_url = monitoring_config.get("slack_webhook_url", "")
-        enable_dashboard = monitoring_config.get("enable_dashboard", True)
+        # Accept either a typed MonitoringConfig or a plain dict (e.g. from tests).
+        if not isinstance(monitoring_config, MonitoringConfig):
+            monitoring_config = MonitoringConfig.model_validate(monitoring_config)
+
+        alarm_config = monitoring_config.alarms
+        notification_email = monitoring_config.notification_email
+        slack_webhook_url = monitoring_config.slack_webhook_url
+        enable_dashboard = monitoring_config.enable_dashboard
 
         # ------------------------------------------------------------------ #
         # SNS Topic + Subscriptions
@@ -89,7 +82,7 @@ class MonitoringStack(cdk.Stack):
                 period=cdk.Duration.minutes(1),
                 statistic="Average",
             ),
-            threshold=alarm_config["ecs_cpu_threshold"],
+            threshold=alarm_config.ecs_cpu_threshold,
             evaluation_periods=3,
             datapoints_to_alarm=2,
             comparison_operator=cw.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
@@ -106,7 +99,7 @@ class MonitoringStack(cdk.Stack):
                 period=cdk.Duration.minutes(1),
                 statistic="Average",
             ),
-            threshold=alarm_config["ecs_memory_threshold"],
+            threshold=alarm_config.ecs_memory_threshold,
             evaluation_periods=3,
             datapoints_to_alarm=2,
             comparison_operator=cw.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
@@ -124,7 +117,7 @@ class MonitoringStack(cdk.Stack):
                 period=cdk.Duration.minutes(5),
                 statistic="Sum",
             ),
-            threshold=alarm_config["alb_5xx_threshold"],
+            threshold=alarm_config.alb_5xx_threshold,
             evaluation_periods=1,
             comparison_operator=cw.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
             alarm_description="ALB is returning elevated 5xx errors",
@@ -140,7 +133,7 @@ class MonitoringStack(cdk.Stack):
                 period=cdk.Duration.minutes(1),
                 statistic="p99",
             ),
-            threshold=alarm_config["alb_p99_latency_threshold"],
+            threshold=alarm_config.alb_p99_latency_threshold,
             evaluation_periods=3,
             datapoints_to_alarm=2,
             comparison_operator=cw.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
@@ -157,7 +150,7 @@ class MonitoringStack(cdk.Stack):
                 period=cdk.Duration.minutes(1),
                 statistic="Maximum",
             ),
-            threshold=alarm_config["unhealthy_host_threshold"],
+            threshold=alarm_config.unhealthy_host_threshold,
             evaluation_periods=2,
             datapoints_to_alarm=2,
             comparison_operator=cw.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
@@ -174,7 +167,7 @@ class MonitoringStack(cdk.Stack):
                 period=cdk.Duration.minutes(1),
                 statistic="Minimum",
             ),
-            threshold=alarm_config["healthy_host_min"],
+            threshold=alarm_config.healthy_host_min,
             evaluation_periods=1,
             comparison_operator=cw.ComparisonOperator.LESS_THAN_THRESHOLD,
             alarm_description="ALB target group has fewer healthy hosts than expected",
@@ -196,7 +189,7 @@ class MonitoringStack(cdk.Stack):
                 period=cdk.Duration.minutes(1),
                 statistic="Minimum",
             ),
-            threshold=alarm_config["running_task_min"],
+            threshold=alarm_config.running_task_min,
             evaluation_periods=3,
             datapoints_to_alarm=2,
             comparison_operator=cw.ComparisonOperator.LESS_THAN_THRESHOLD,
@@ -346,8 +339,8 @@ class MonitoringStack(cdk.Stack):
                     ],
                     left_annotations=[
                         cw.HorizontalAnnotation(
-                            value=alarm_config["running_task_min"],
-                            label=f"Alarm threshold ({alarm_config['running_task_min']})",
+                            value=alarm_config.running_task_min,
+                            label=f"Alarm threshold ({alarm_config.running_task_min})",
                             color=cw.Color.RED,
                         )
                     ],
