@@ -255,13 +255,15 @@ TargetHostName: !CopyValue [!Sub 'app-dev-load-balancer-dns', !Ref DnTDevAccount
 
 This template includes an opt-in monitoring stack that provides CloudWatch alarms,
 SNS notifications, and a CloudWatch dashboard for your ECS service. **No monitoring
-resources are created unless you explicitly configure them.**
+resources are created unless you explicitly configure them**, apart from the
+per-function [Lambda error alarms](#lambda-error-alarms), which always exist.
 
 ### How It Fits Together
 
-When monitoring is enabled, the template creates a fifth CloudFormation stack
-(`app-{env}-monitoring`) that references resources from the other stacks. It also
-enables [ECS Container Insights (Enhanced)](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/ContainerInsights.html)
+When monitoring is enabled, the template creates two more CloudFormation stacks:
+`app-{env}-alarms`, deployed first, holds the SNS topic that every alarm notifies;
+`app-{env}-monitoring` holds the ECS/ALB alarms and dashboard and references
+resources from the other stacks. It also enables [ECS Container Insights (Enhanced)](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/ContainerInsights.html)
 on the ECS cluster, which is required for the RunningTaskCount metric.
 
 ```mermaid
@@ -283,19 +285,27 @@ graph TB
         ALB["Application Load Balancer"]
     end
 
-    subgraph "app-{env}-monitoring (new)"
+    subgraph "app-{env}-alarms (new)"
         SNS["SNS Topic"]
         EMAIL["Email Subscription"]
         SLACK["Slack Lambda<br/>(optional)"]
+    end
+
+    subgraph "app-{env}-monitoring (new)"
         ALARMS["CloudWatch Alarms (7)"]
         DASH["CloudWatch Dashboard<br/>(optional)"]
     end
+
+    LAMBDAS["Every Lambda function, in any stack<br/>(incl. CDK custom-resource handlers)"]
+    LAMBDA_ALARMS["Lambda Errors alarm per function<br/>(in the function's stack)"]
 
     YAML -->|MONITORING config present| CLUSTER
     YAML -->|MONITORING config| SNS
     SNS --> EMAIL
     SNS --> SLACK
     ALARMS -->|alarm action| SNS
+    LAMBDAS -->|Errors metric| LAMBDA_ALARMS
+    LAMBDA_ALARMS -->|alarm action| SNS
     ECS -->|CPU, Memory metrics| ALARMS
     ALB -->|5xx, P99 latency metrics| ALARMS
     TG -->|Healthy/Unhealthy host metrics| ALARMS
@@ -334,6 +344,9 @@ classDiagram
         +Unhealthy Host Count >=1
         +Healthy Host Count ~lt~1
     }
+    class LambdaAlarms {
+        +Errors >=1 per 5min, per function
+    }
     class SNSTopic {
         +Email Subscription
         +Slack Lambda (optional)
@@ -342,7 +355,18 @@ classDiagram
     ECSAlarms --> SNSTopic : alarm action
     ALBAlarms --> SNSTopic : alarm action
     TargetGroupAlarms --> SNSTopic : alarm action
+    LambdaAlarms --> SNSTopic : alarm action
 ```
+
+### Lambda Error Alarms
+
+The `LambdaErrorAlarms` aspect (`src/lambda_error_alarms.py`), applied to the
+whole app in `app.py`, adds an `AWS/Lambda` `Errors` alarm keyed on
+`FunctionName` for every Lambda function in every stack, including those CDK
+generates for custom resources. A Lambda you add later gets an alarm with no
+extra code. These alarms exist even when monitoring is disabled (satisfying
+Vanta's "Serverless function error rate monitored (AWS)" test); they notify the
+SNS topic only when monitoring is enabled.
 
 ### Enabling Monitoring
 
@@ -357,8 +381,9 @@ MONITORING:
 ```
 
 This creates:
-- An SNS topic with an email subscription (you must confirm the subscription via email)
+- An SNS topic with an email subscription, in the `app-{env}-alarms` stack (you must confirm the subscription via email)
 - 7 CloudWatch alarms with sensible default thresholds
+- Notifications from every Lambda `Errors` alarm to that topic
 - A CloudWatch dashboard with ECS, ALB, and health widgets
 - ECS Container Insights (Enhanced) on the cluster
 
